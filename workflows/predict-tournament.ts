@@ -96,7 +96,7 @@ async function predictGroupStage() {
     .join("\n");
 
   const { object } = await generateObject({
-    model: gateway("anthropic/claude-sonnet-4"),
+    model: gateway(process.env.AI_MODEL || "anthropic/claude-sonnet-4"),
     schema: allGroupsSchema,
     prompt: `You are a football/soccer analytics expert. Predict the 2026 FIFA World Cup group stage results.
 
@@ -132,7 +132,7 @@ async function predictRound(
   }
 
   const { object } = await generateObject({
-    model: gateway("anthropic/claude-sonnet-4"),
+    model: gateway(process.env.AI_MODEL || "anthropic/claude-sonnet-4"),
     schema: roundSchema,
     prompt: `You are a football/soccer analytics expert predicting the 2026 FIFA World Cup.
 
