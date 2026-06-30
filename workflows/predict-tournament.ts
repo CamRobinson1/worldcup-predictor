@@ -2,6 +2,7 @@ import { generateObject } from "ai";
 import { gateway } from "@ai-sdk/gateway";
 import { z } from "zod";
 import { groups } from "../src/lib/teams";
+import { groupVenues, venues, getWeatherForVenue } from "../src/lib/venues";
 
 const matchResultSchema = z.object({
   winner: z.string(),
@@ -43,6 +44,19 @@ const allGroupsSchema = z.object({
     })
   ),
 });
+
+function getVenueContext(): string {
+  const lines: string[] = [];
+  for (const [groupName, venueKeys] of Object.entries(groupVenues)) {
+    const venueInfo = venueKeys.map((key) => {
+      const v = venues[key];
+      const w = getWeatherForVenue(key);
+      return `${v.stadium} (${v.city}, ${v.country}) — ${w.tempF}°F, ${w.humidity}% humidity, ${w.rainChance}% rain chance, ${w.condition}. Impact: ${w.impact}`;
+    });
+    lines.push(`${groupName} venues:\n  ${venueInfo.join("\n  ")}`);
+  }
+  return lines.join("\n");
+}
 
 export async function predictTournament() {
   "use workflow";
@@ -95,6 +109,8 @@ async function predictGroupStage() {
     )
     .join("\n");
 
+  const venueContext = getVenueContext();
+
   const { object } = await generateObject({
     model: gateway("openai/gpt-4o"),
     schema: allGroupsSchema,
@@ -102,6 +118,9 @@ async function predictGroupStage() {
 
 Here are the groups:
 ${groupsDescription}
+
+Venue and weather conditions for each group:
+${venueContext}
 
 For each group, predict the final standings (1st through 4th) with points and goal difference.
 Then determine the 32 teams that qualify: top 2 from each group (24 teams) + 8 best third-place teams.
@@ -111,7 +130,8 @@ Base your predictions on:
 - Current FIFA rankings
 - Recent tournament performance (2022 World Cup, continental championships)
 - Squad quality and key players
-- Historical World Cup performance`,
+- Historical World Cup performance
+- Weather and venue conditions (heat, humidity, altitude can affect teams not accustomed to those conditions)`,
   });
 
   return object;
@@ -131,6 +151,15 @@ async function predictRound(
     }
   }
 
+  const knockoutVenues = ["metlife", "att", "sofi", "hardrock", "nrg"];
+  const weatherContext = knockoutVenues
+    .map((key) => {
+      const v = venues[key];
+      const w = getWeatherForVenue(key);
+      return `${v.stadium} (${v.city}): ${w.tempF}°F, ${w.humidity}% humidity, ${w.condition}. ${w.impact}`;
+    })
+    .join("\n");
+
   const { object } = await generateObject({
     model: gateway("openai/gpt-4o"),
     schema: roundSchema,
@@ -142,10 +171,13 @@ ${pairings.map((p, i) => `Match ${i + 1}: ${p}`).join("\n")}
 
 Group stage context: ${JSON.stringify(groupResults.groups.map((g) => ({ group: g.groupName, top: g.standings.slice(0, 2).map((s) => s.team) })))}
 
+Knockout round venue conditions (matches played across these US stadiums):
+${weatherContext}
+
 For each match, predict:
 - The winner (no draws in knockout rounds)
 - A realistic score
-- Brief reasoning based on team quality, form, and matchup dynamics`,
+- Brief reasoning based on team quality, form, matchup dynamics, and how weather/venue conditions might favor one side`,
   });
 
   return object;
