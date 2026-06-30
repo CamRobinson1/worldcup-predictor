@@ -96,7 +96,7 @@ async function predictGroupStage() {
     .join("\n");
 
   const { object } = await generateObject({
-    model: gateway("deepseek/deepseek-v4-pro"),
+    model: gateway("openai/gpt-4o"),
     schema: allGroupsSchema,
     prompt: `You are a football/soccer analytics expert. Predict the 2026 FIFA World Cup group stage results.
 
@@ -132,7 +132,7 @@ async function predictRound(
   }
 
   const { object } = await generateObject({
-    model: gateway("minimax/minimax-m3"),
+    model: gateway("openai/gpt-4o"),
     schema: roundSchema,
     prompt: `You are a football/soccer analytics expert predicting the 2026 FIFA World Cup.
 
